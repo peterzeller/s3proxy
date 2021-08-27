@@ -1,10 +1,15 @@
 # Multistage - Builder
-FROM maven:3.6.3-jdk-11-slim as s3proxy-builder
+FROM maven:3.6.3-jdk-11 as s3proxy-builder
 LABEL maintainer="Andrew Gaul <andrew@gaul.org>"
 
 WORKDIR /opt/s3proxy
+# first copy only pom.xml to cache dependencies
+COPY pom.xml /opt/s3proxy/
+COPY src/main/assembly /opt/s3proxy/src/main/assembly/
+RUN mvn verify --fail-never
+RUN mvn dependency:go-offline
+RUN mvn package -DskipTests --fail-never
 COPY . /opt/s3proxy/
-
 RUN mvn package -DskipTests
 
 # Multistage - Image
@@ -44,4 +49,7 @@ ENV \
 EXPOSE 80
 VOLUME /data
 
+#COPY azure.properties /opt/s3proxy/
+
 ENTRYPOINT ["/opt/s3proxy/run-docker-container.sh"]
+#ENTRYPOINT ["java", "-DLOG_LEVEL=all", "-jar", "/opt/s3proxy/s3proxy", "--properties", "/opt/s3proxy/azure.properties"]
